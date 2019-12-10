@@ -53,7 +53,7 @@ def show_image_buf(img_buf, jitter, label=None, decorrelate=True, fft=True):
 
 def visualize_feature(model, layer, feature,
                       size=200, jitter=25,
-                      steps=2000, lr=0.05,
+                      steps=500, lr=0.05,
                       decorrelate=True, fft=True,
                       debug=False):
     img_buf = init_fft_buf(size+jitter) if fft else init_pixel_buf(size+jitter)
