@@ -1,6 +1,6 @@
 # Feature-visualization
 Deep learning CNN feature visualization
-- a Pytorch/Fast.ai port of https://github.com/tensorflow/lucid
+- a Pytorch port of https://github.com/tensorflow/lucid
 
 ![](0.png)
 ![](1.png)
