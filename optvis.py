@@ -38,7 +38,7 @@ def lucid_to_rgb(t):
     t = t_flat.permute(0,3,1,2)
     return t
 
-def show_image_buf(img_buf, jitter, label=None, decorrelate=True, fft=True):
+def image_buf_to_image(img_buf, jitter, decorrelate=True, fft=True):
     img = img_buf.detach()
     if fft: img=fft_to_rgb(img)
     size = img.shape[-1]
@@ -47,6 +47,9 @@ def show_image_buf(img_buf, jitter, label=None, decorrelate=True, fft=True):
     img = torch.sigmoid(img)
     img = img[:,:,x_off:x_off+size-jitter,y_off:y_off+size-jitter] # jitter
     img = Image(img[0])
+    return img
+    
+def show_image(img, label=None):
     img.show(figsize=(img.shape[1]/25,img.shape[2]/25))
     plt.title(label)
     plt.show()
@@ -71,8 +74,7 @@ def visualize_feature(model, layer, feature,
             loss = -1*hook_a.stored[0][feature].mean()
             loss.backward()
             opt.step()
-            if debug and i%(steps/10)==0: 
-                show_image_buf(img_buf, jitter, label=f"step: {i} loss: {loss}", decorrelate=decorrelate, fft=fft)
+            if debug and i%(steps/10)==0:
+                show_image(image_buf_to_image(img_buf, jitter, decorrelate=decorrelate, fft=fft), label=f"step: {i} loss: {loss}")
 
-    show_image_buf(img_buf, jitter, label=f"Feature {feature}",decorrelate=decorrelate, fft=fft)
-
+    return image_buf_to_image(img_buf, jitter, decorrelate=decorrelate, fft=fft)
