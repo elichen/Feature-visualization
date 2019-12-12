@@ -1,5 +1,7 @@
-from fastai.vision import *
-from fastai.callbacks.hooks import *
+import numpy as np
+import torch
+from torch import tensor
+import matplotlib.pyplot as plt
 
 def init_fft_buf(size):
     img_buf = np.random.normal(size=(1, 3, size, size//2 + 1,2), scale=0.01).astype(np.float32)
@@ -38,7 +40,7 @@ def lucid_to_rgb(t):
     t = t_flat.permute(0,3,1,2)
     return t
 
-def image_buf_to_image(img_buf, jitter, decorrelate=True, fft=True):
+def image_buf_to_rgb(img_buf, jitter, decorrelate=True, fft=True):
     img = img_buf.detach()
     if fft: img=fft_to_rgb(img)
     size = img.shape[-1]
@@ -46,12 +48,15 @@ def image_buf_to_image(img_buf, jitter, decorrelate=True, fft=True):
     if decorrelate: img = lucid_to_rgb(img)
     img = torch.sigmoid(img)
     img = img[:,:,x_off:x_off+size-jitter,y_off:y_off+size-jitter] # jitter
-    img = Image(img[0])
+    img = img.squeeze()    
     return img
     
-def show_image(img, label=None):
-    img.show(figsize=(img.shape[1]/25,img.shape[2]/25))
-    plt.title(label)
+def show_rgb(img, label=None, ax=None):
+    if ax == None: _, ax = plt.subplots(figsize=(img.shape[1]/25,img.shape[2]/25))
+    x = img.cpu().permute(1,2,0).numpy()
+    ax.imshow(x)
+    ax.axis('off')
+    ax.set_title(label)
     plt.show()
 
 def visualize_feature(model, layer, feature,
@@ -63,18 +68,24 @@ def visualize_feature(model, layer, feature,
     img_buf.requires_grad_()
     opt = torch.optim.Adam([img_buf], lr=lr)
 
-    with hook_output(layer,detach=False) as hook_a:
-        for i in range(steps):
-            x_off, y_off = int(np.random.random()*jitter),int(np.random.random()*jitter)
-            img = fft_to_rgb(img_buf) if fft else img_buf
-            img = img[:,:,x_off:x_off+size+1,y_off:y_off+size+1] # jitter
-            if decorrelate: img = lucid_to_rgb(img) # decorrelate color
-            model(img.cuda())
-            opt.zero_grad()
-            loss = -1*hook_a.stored[0][feature].mean()
-            loss.backward()
-            opt.step()
-            if debug and i%(steps/10)==0:
-                show_image(image_buf_to_image(img_buf, jitter, decorrelate=decorrelate, fft=fft), label=f"step: {i} loss: {loss}")
+    hook_out = None
+    def callback(m, i, o):
+        nonlocal hook_out
+        hook_out = o
+    hook = layer.register_forward_hook(callback)
+    
+    for i in range(steps):
+        x_off, y_off = int(np.random.random()*jitter),int(np.random.random()*jitter)
+        img = fft_to_rgb(img_buf) if fft else img_buf
+        img = img[:,:,x_off:x_off+size+1,y_off:y_off+size+1] # jitter
+        if decorrelate: img = lucid_to_rgb(img) # decorrelate color
+        model(img.cuda())
+        opt.zero_grad()
+        loss = -1*hook_out[0][feature].mean()
+        loss.backward()
+        opt.step()
+        if debug and i%(steps/10)==0:
+            show_rgb(image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft), label=f"step: {i} loss: {loss}")
 
-    return image_buf_to_image(img_buf, jitter, decorrelate=decorrelate, fft=fft)
+    hook.remove()
+    return image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft)
