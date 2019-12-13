@@ -52,18 +52,19 @@ def image_buf_to_rgb(img_buf, jitter, decorrelate=True, fft=True):
     return img
     
 def show_rgb(img, label=None, ax=None):
+    plt_show = True if ax == None else False
     if ax == None: _, ax = plt.subplots(figsize=(img.shape[1]/25,img.shape[2]/25))
     x = img.cpu().permute(1,2,0).numpy()
     ax.imshow(x)
     ax.axis('off')
     ax.set_title(label)
-    plt.show()
+    if plt_show: plt.show()
 
 def visualize_feature(model, layer, feature,
                       size=200, jitter=25,
                       steps=500, lr=0.05,
                       decorrelate=True, fft=True,
-                      debug=False):
+                      debug=False, show=True):
     img_buf = init_fft_buf(size+jitter) if fft else init_pixel_buf(size+jitter)
     img_buf.requires_grad_()
     opt = torch.optim.Adam([img_buf], lr=lr)
@@ -88,4 +89,9 @@ def visualize_feature(model, layer, feature,
             show_rgb(image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft), label=f"step: {i} loss: {loss}")
 
     hook.remove()
-    return image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft)
+    
+    retval = image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft)
+    if show:
+        show_rgb(retval)
+    else:
+        return retval
