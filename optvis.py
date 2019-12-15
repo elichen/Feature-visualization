@@ -76,7 +76,7 @@ def visualize_feature(model, layer, feature,
         hook_out = o
     hook = layer.register_forward_hook(callback)
     
-    for i in range(steps):
+    for i in range(1,steps+1):
         x_off, y_off = int(np.random.random()*jitter),int(np.random.random()*jitter)
         img = fft_to_rgb(img_buf) if fft else img_buf
         img = img[:,:,x_off:x_off+size+1,y_off:y_off+size+1] # jitter
@@ -86,7 +86,7 @@ def visualize_feature(model, layer, feature,
         loss = -1*hook_out[0][feature].mean()
         loss.backward()
         opt.step()
-        if debug and i%(steps/frames)==0:
+        if debug and (i)%(steps/frames)==0:
             clear_output(wait=True)
             show_rgb(image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft), label=f"step: {i} loss: {loss}")
 
@@ -94,6 +94,6 @@ def visualize_feature(model, layer, feature,
     
     retval = image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft)
     if show:
-        show_rgb(retval)
+        if not debug: show_rgb(retval)
     else:
         return retval
