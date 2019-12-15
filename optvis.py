@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 def init_fft_buf(size):
     img_buf = np.random.normal(size=(1, 3, size, size//2 + 1,2), scale=0.01).astype(np.float32)
-    spectrum_t = tensor(img_buf).float()
+    spectrum_t = tensor(img_buf).float().cuda()
     return spectrum_t
     
 def fft_to_rgb(t):
@@ -15,7 +15,7 @@ def fft_to_rgb(t):
     fx = np.fft.fftfreq(size)[: size//2 + 1]
     freqs = (np.sqrt(fx * fx + fy * fy))
     scale = 1.0 / np.maximum(freqs, 1.0 / max(size, size)) ** 1
-    scale = tensor(scale).float()[None,None,...,None]
+    scale = tensor(scale).float()[None,None,...,None].cuda()
     t = scale * t
 
     image_t = torch.irfft(t,2,signal_sizes=(size,size), normalized=True)
@@ -25,7 +25,7 @@ def fft_to_rgb(t):
 
 def init_pixel_buf(size):
     img_buf = torch.empty(1,3,size,size).normal_(mean=0,std=0.01)
-    img_buf = torch.sigmoid(tensor(img_buf))
+    img_buf = torch.sigmoid(tensor(img_buf)).cuda()
     return img_buf
     
 def lucid_to_rgb(t):
@@ -35,7 +35,7 @@ def lucid_to_rgb(t):
     max_norm_svd_sqrt = np.max(np.linalg.norm(color_correlation_svd_sqrt, axis=0))
 
     t_flat = t.permute(0,2,3,1)
-    color_correlation_normalized = tensor(color_correlation_svd_sqrt / max_norm_svd_sqrt)
+    color_correlation_normalized = tensor(color_correlation_svd_sqrt / max_norm_svd_sqrt).cuda()
     t_flat = torch.matmul(t_flat, color_correlation_normalized.T)
     t = t_flat.permute(0,3,1,2)
     return t
