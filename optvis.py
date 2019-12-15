@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import tensor
 import matplotlib.pyplot as plt
+from IPython.display import clear_output
 
 def init_fft_buf(size):
     img_buf = np.random.normal(size=(1, 3, size, size//2 + 1,2), scale=0.01).astype(np.float32)
@@ -64,7 +65,7 @@ def visualize_feature(model, layer, feature,
                       size=200, jitter=25,
                       steps=500, lr=0.05,
                       decorrelate=True, fft=True,
-                      debug=False, show=True):
+                      debug=False, frames=10, show=True):
     img_buf = init_fft_buf(size+jitter) if fft else init_pixel_buf(size+jitter)
     img_buf.requires_grad_()
     opt = torch.optim.Adam([img_buf], lr=lr)
@@ -85,7 +86,8 @@ def visualize_feature(model, layer, feature,
         loss = -1*hook_out[0][feature].mean()
         loss.backward()
         opt.step()
-        if debug and i%(steps/10)==0:
+        if debug and i%(steps/frames)==0:
+            clear_output(wait=True)
             show_rgb(image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft), label=f"step: {i} loss: {loss}")
 
     hook.remove()
