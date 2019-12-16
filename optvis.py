@@ -5,17 +5,19 @@ import matplotlib.pyplot as plt
 from IPython.display import clear_output
 
 def init_fft_buf(size):
-    img_buf = np.random.normal(size=(1, 3, size, size//2 + 1,2), scale=0.01).astype(np.float32)
+    sd = 0.01
+    img_buf = np.random.normal(size=(1, 3, size, size//2 + 1, 2), scale=sd).astype(np.float32)
     spectrum_t = tensor(img_buf).float().cuda()
     return spectrum_t
     
 def fft_to_rgb(t):
+    decay_power = 1
     size = t.shape[-3]
 
     fy = np.fft.fftfreq(size)[:,None]
     fx = np.fft.fftfreq(size)[: size//2 + 1]
     freqs = (np.sqrt(fx * fx + fy * fy))
-    scale = 1.0 / np.maximum(freqs, 1.0 / max(size, size)) ** 1
+    scale = 1.0 / np.maximum(freqs, 1.0 / size) ** decay_power
     scale = tensor(scale).float()[None,None,...,None].cuda()
     t = scale * t
 
