@@ -10,12 +10,11 @@ def init_fft_buf(size):
     spectrum_t = tensor(img_buf).float().cuda()
     return spectrum_t
     
-def fft_to_rgb(t):
-    decay_power = 1
+def fft_to_rgb(t, d=1, decay_power=1, **kwargs):
     size = t.shape[-3]
 
-    fy = np.fft.fftfreq(size)[:,None]
-    fx = np.fft.fftfreq(size)[: size//2 + 1]
+    fy = np.fft.fftfreq(size,d=d)[:,None]
+    fx = np.fft.fftfreq(size,d=d)[: size//2 + 1]
     freqs = (np.sqrt(fx * fx + fy * fy))
     scale = 1.0 / np.maximum(freqs, 1.0 / size) ** decay_power
     scale = tensor(scale).float()[None,None,...,None].cuda()
@@ -43,9 +42,9 @@ def lucid_to_rgb(t):
     t = t_flat.permute(0,3,1,2)
     return t
 
-def image_buf_to_rgb(img_buf, jitter, decorrelate=True, fft=True):
+def image_buf_to_rgb(img_buf, jitter, decorrelate=True, fft=True, **kwargs):
     img = img_buf.detach()
-    if fft: img=fft_to_rgb(img)
+    if fft: img=fft_to_rgb(img, **kwargs)
     size = img.shape[-1]
     x_off,y_off = jitter//2,jitter//2
     if decorrelate: img = lucid_to_rgb(img)
@@ -54,9 +53,9 @@ def image_buf_to_rgb(img_buf, jitter, decorrelate=True, fft=True):
     img = img.squeeze()    
     return img
     
-def show_rgb(img, label=None, ax=None):
+def show_rgb(img, label=None, ax=None, dpi=25):
     plt_show = True if ax == None else False
-    if ax == None: _, ax = plt.subplots(figsize=(img.shape[1]/25,img.shape[2]/25))
+    if ax == None: _, ax = plt.subplots(figsize=(img.shape[1]/dpi,img.shape[2]/dpi))
     x = img.cpu().permute(1,2,0).numpy()
     ax.imshow(x)
     ax.axis('off')
@@ -67,7 +66,7 @@ def visualize_feature(model, layer, feature,
                       size=200, jitter=25,
                       steps=500, lr=0.05,
                       decorrelate=True, fft=True,
-                      debug=False, frames=10, show=True):
+                      debug=False, frames=10, show=True, **kwargs):
     img_buf = init_fft_buf(size+jitter) if fft else init_pixel_buf(size+jitter)
     img_buf.requires_grad_()
     opt = torch.optim.Adam([img_buf], lr=lr)
@@ -80,7 +79,7 @@ def visualize_feature(model, layer, feature,
     
     for i in range(1,steps+1):
         x_off, y_off = int(np.random.random()*jitter),int(np.random.random()*jitter)
-        img = fft_to_rgb(img_buf) if fft else img_buf
+        img = fft_to_rgb(img_buf, **kwargs) if fft else img_buf
         img = img[:,:,x_off:x_off+size+1,y_off:y_off+size+1] # jitter
         if decorrelate: img = lucid_to_rgb(img) # decorrelate color
         model(img.cuda())
@@ -90,12 +89,13 @@ def visualize_feature(model, layer, feature,
         opt.step()
         if debug and (i)%(steps/frames)==0:
             clear_output(wait=True)
-            show_rgb(image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft), label=f"step: {i} loss: {loss}")
+            show_rgb(image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft, **kwargs),
+                     label=f"step: {i} loss: {loss}", **kwargs)
 
     hook.remove()
     
-    retval = image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft)
+    retval = image_buf_to_rgb(img_buf, jitter, decorrelate=decorrelate, fft=fft, **kwargs)
     if show:
-        if not debug: show_rgb(retval)
+        if not debug: show_rgb(retval, **kwargs)
     else:
         return retval
