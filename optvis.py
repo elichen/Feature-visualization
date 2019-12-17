@@ -18,9 +18,10 @@ def fft_to_rgb(t, d=1, decay_power=1, **kwargs):
     freqs = (np.sqrt(fx * fx + fy * fy))
     scale = 1.0 / np.maximum(freqs, 1.0 / size) ** decay_power
     scale = tensor(scale).float()[None,None,...,None].cuda()
+    scale *= size
     t = scale * t
 
-    image_t = torch.irfft(t,2,signal_sizes=(size,size), normalized=True)
+    image_t = torch.irfft(t,2,signal_sizes=(size,size))
     image_t = image_t / 4.0
 
     return image_t
