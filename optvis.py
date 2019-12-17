@@ -10,7 +10,7 @@ def init_fft_buf(size):
     spectrum_t = tensor(img_buf).float().cuda()
     return spectrum_t
     
-def fft_to_rgb(t, d=1, decay_power=1, **kwargs):
+def fft_to_rgb(t, d=0.5, decay_power=1, **kwargs):
     size = t.shape[-3]
 
     fy = np.fft.fftfreq(size,d=d)[:,None]
@@ -65,7 +65,7 @@ def show_rgb(img, label=None, ax=None, dpi=25, **kwargs):
 
 def visualize_feature(model, layer, feature,
                       size=200, jitter=25,
-                      steps=500, lr=0.05,
+                      steps=2000, lr=0.05,
                       decorrelate=True, fft=True,
                       debug=False, frames=10, show=True, **kwargs):
     img_buf = init_fft_buf(size+jitter) if fft else init_pixel_buf(size+jitter)
