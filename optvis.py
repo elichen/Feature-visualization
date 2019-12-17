@@ -53,7 +53,7 @@ def image_buf_to_rgb(img_buf, jitter, decorrelate=True, fft=True, **kwargs):
     img = img.squeeze()    
     return img
     
-def show_rgb(img, label=None, ax=None, dpi=25):
+def show_rgb(img, label=None, ax=None, dpi=25, **kwargs):
     plt_show = True if ax == None else False
     if ax == None: _, ax = plt.subplots(figsize=(img.shape[1]/dpi,img.shape[2]/dpi))
     x = img.cpu().permute(1,2,0).numpy()
