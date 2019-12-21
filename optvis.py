@@ -10,7 +10,7 @@ def init_fft_buf(size):
     spectrum_t = tensor(img_buf).float().cuda()
     return spectrum_t
     
-def fft_to_rgb(t, d=0.5, decay_power=1, **kwargs):
+def fft_to_rgb(t, d=0.5, decay_power=1, fft_magic=4.0, **kwargs):
     size = t.shape[-3]
 
     fy = np.fft.fftfreq(size,d=d)[:,None]
@@ -22,13 +22,13 @@ def fft_to_rgb(t, d=0.5, decay_power=1, **kwargs):
     t = scale * t
 
     image_t = torch.irfft(t,2,signal_sizes=(size,size))
-    image_t = image_t / 4.0
+    image_t = image_t / fft_magic
 
     return image_t
 
 def init_pixel_buf(size):
     img_buf = torch.empty(1,3,size,size).normal_(mean=0,std=0.01)
-    img_buf = torch.sigmoid(tensor(img_buf)).cuda()
+    img_buf = torch.sigmoid(img_buf).cuda()
     return img_buf
     
 def lucid_to_rgb(t):
