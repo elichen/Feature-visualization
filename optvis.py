@@ -137,7 +137,7 @@ def visualize_feature(model, layer, feature, start_image=None,
     for i in range(1,steps+1):
         img = fft_to_rgb(img_buf, **kwargs)
         img = lucid_colorspace_to_rgb(img)
-        img = torch.clamp(img, min=-1.0, max=1.0)
+        img = torch.sigmoid(img)
         img = lucid_transforms(img, **kwargs)
             
         model(img.cuda())
@@ -148,7 +148,7 @@ def visualize_feature(model, layer, feature, start_image=None,
             loss = -1*hook_out[0][feature].mean()
         loss.backward()
         opt.step()
-        if debug and (i)%(steps/frames)==0:
+        if debug and (i)%(int(steps/frames))==0:
             clear_output(wait=True)
             show_rgb(image_buf_to_rgb(img_buf, **kwargs),
                      label=f"step: {i} loss: {loss}", **kwargs)
