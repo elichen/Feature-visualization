@@ -6,7 +6,7 @@ from IPython.display import clear_output
 from torchvision import transforms
 import fastai.vision as vision
 
-def init_fft_buf(size, rand_sd=0.01, **kwargs):
+def init_fft_buf(size, rand_sd=0.1, **kwargs):
     img_buf = np.random.normal(size=(1, 3, size, size//2 + 1, 2), scale=rand_sd).astype(np.float32)
     spectrum_t = tensor(img_buf).float().cuda()
     return spectrum_t
