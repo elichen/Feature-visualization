@@ -4,6 +4,7 @@ from torch import tensor
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
 from torchvision import transforms
+import fastai.vision as vision
 
 def init_fft_buf(size, rand_sd=0.01, **kwargs):
     img_buf = np.random.normal(size=(1, 3, size, size//2 + 1, 2), scale=rand_sd).astype(np.float32)
@@ -56,14 +57,12 @@ def rgb_to_lucid_colorspace(t):
     t = t_flat.permute(0,3,1,2)
     return t
 
-def image_buf_to_rgb(img_buf, jitter, **kwargs):
+def image_buf_to_rgb(img_buf, **kwargs):
     img = img_buf.detach()
     img = fft_to_rgb(img, **kwargs)
     size = img.shape[-1]
-    x_off,y_off = jitter//2,jitter//2
     img = lucid_colorspace_to_rgb(img)
     img = torch.sigmoid(img)
-    img = img[:,:,x_off:x_off+size-jitter,y_off:y_off+size-jitter] # jitter
     img = img.squeeze()    
     return img
     
@@ -76,15 +75,56 @@ def show_rgb(img, label=None, ax=None, dpi=25, **kwargs):
     ax.set_title(label)
     if plt_show: plt.show()
 
+def gpu_affine_grid(size):
+    size = ((1,)+size)
+    N, C, H, W = size
+    grid = torch.FloatTensor(N, H, W, 2).cuda()
+    linear_points = torch.linspace(-1, 1, W) if W > 1 else tensor([-1.])
+    grid[:, :, :, 0] = torch.ger(torch.ones(H), linear_points).expand_as(grid[:, :, :, 0])
+    linear_points = torch.linspace(-1, 1, H) if H > 1 else tensor([-1.])
+    grid[:, :, :, 1] = torch.ger(linear_points, torch.ones(W)).expand_as(grid[:, :, :, 1])
+    return vision.FlowField(size[2:], grid)
+
+def lucid_transforms(img, jitter=12, scale=.1, degrees=10, **kwargs):
+    size = img.shape[-1]
+    fastai_image = vision.Image(img.squeeze())
+
+    # pad
+    fastai_image._flow = gpu_affine_grid(fastai_image.shape)
+    vision.transform.pad()(fastai_image, jitter)
+
+    # jitter
+    vision.transform.crop_pad()(fastai_image, size+int((jitter*(2/3))), row_pct=np.random.rand(), col_pct=np.random.rand())
+
+    # scale
+    percent = scale * 100 # scale up to integer to avoid float repr errors
+    scale_factors = [(100 - percent + percent/5. * i)/100 for i in range(11)]            
+    rand_scale = scale_factors[int(np.random.rand()*len(scale_factors))]
+    fastai_image._flow = gpu_affine_grid(fastai_image.shape)
+    vision.transform.zoom()(fastai_image, rand_scale)
+
+    # rotate
+    rotate_factors = list(range(-degrees, degrees+1)) + degrees//2 * [0]
+    rand_rotate = rotate_factors[int(np.random.rand()*len(rotate_factors))]
+    fastai_image._flow = gpu_affine_grid(fastai_image.shape)
+    vision.transform.rotate()(fastai_image, rand_rotate)
+
+    # jitter
+    vision.transform.crop_pad()(fastai_image, size, row_pct=np.random.rand(), col_pct=np.random.rand())
+
+    return fastai_image.data[None,:]
+
 def visualize_feature(model, layer, feature, start_image=None,
-                      size=200, jitter=25,
-                      steps=2000, lr=0.05,
+                      size=200, steps=2000, lr=0.05,
                       debug=False, frames=10, show=True, **kwargs):
     if start_image is not None:
-        img_buf = rgb_to_lucid_colorspace(start_image)
+        fastai_image = vision.Image(start_image.squeeze())
+        fastai_image._flow = gpu_affine_grid((3,size,size)) # resize
+        img_buf = fastai_image.data[None,:]
+        img_buf = rgb_to_lucid_colorspace(img_buf)
         img_buf = rgb_to_fft(img_buf)
     else:
-        img_buf = init_fft_buf(size+jitter, **kwargs)
+        img_buf = init_fft_buf(size, **kwargs)
     img_buf.requires_grad_()
     opt = torch.optim.Adam([img_buf], lr=lr)
 
@@ -95,11 +135,11 @@ def visualize_feature(model, layer, feature, start_image=None,
     hook = layer.register_forward_hook(callback)
     
     for i in range(1,steps+1):
-        x_off, y_off = int(np.random.random()*jitter),int(np.random.random()*jitter)
         img = fft_to_rgb(img_buf, **kwargs)
-        img = img[:,:,x_off:x_off+size+1,y_off:y_off+size+1] # jitter
         img = lucid_colorspace_to_rgb(img)
         img = torch.clamp(img, min=-1.0, max=1.0)
+        img = lucid_transforms(img, **kwargs)
+            
         model(img.cuda())
         opt.zero_grad()
         if feature is None:
@@ -110,12 +150,12 @@ def visualize_feature(model, layer, feature, start_image=None,
         opt.step()
         if debug and (i)%(steps/frames)==0:
             clear_output(wait=True)
-            show_rgb(image_buf_to_rgb(img_buf, jitter, **kwargs),
+            show_rgb(image_buf_to_rgb(img_buf, **kwargs),
                      label=f"step: {i} loss: {loss}", **kwargs)
 
     hook.remove()
     
-    retval = image_buf_to_rgb(img_buf, jitter, **kwargs)
+    retval = image_buf_to_rgb(img_buf, **kwargs)
     if show:
         if not debug: show_rgb(retval, **kwargs)
     else:
