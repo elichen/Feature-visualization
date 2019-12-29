@@ -57,12 +57,24 @@ def rgb_to_lucid_colorspace(t):
     t = t_flat.permute(0,3,1,2)
     return t
 
+def imagenet_mean_std():
+    return (tensor([0.485, 0.456, 0.406]).cuda(), 
+            tensor([0.229, 0.224, 0.225]).cuda())
+
+def denormalize(x):
+    mean, std = imagenet_mean_std()
+    return x.float()*std[...,None,None] + mean[...,None,None]
+
+def normalize(x):
+    mean, std = imagenet_mean_std()
+    return (x-mean[...,None,None]) / std[...,None,None]
+
 def image_buf_to_rgb(img_buf, **kwargs):
     img = img_buf.detach()
     img = fft_to_rgb(img, **kwargs)
     size = img.shape[-1]
     img = lucid_colorspace_to_rgb(img)
-    img = torch.sigmoid(img)
+    img = torch.clamp(denormalize(img),max=1,min=0)
     img = img.squeeze()    
     return img
     
@@ -121,6 +133,7 @@ def visualize_feature(model, layer, feature, start_image=None,
         fastai_image = vision.Image(start_image.squeeze())
         fastai_image._flow = gpu_affine_grid((3,size,size)) # resize
         img_buf = fastai_image.data[None,:]
+        img_buf = normalize(img_buf)
         img_buf = rgb_to_lucid_colorspace(img_buf)
         img_buf = rgb_to_fft(img_buf)
     else:
@@ -137,7 +150,7 @@ def visualize_feature(model, layer, feature, start_image=None,
     for i in range(1,steps+1):
         img = fft_to_rgb(img_buf, **kwargs)
         img = lucid_colorspace_to_rgb(img)
-        img = torch.sigmoid(img)
+        img = torch.sigmoid(img)*2 - 1
         img = lucid_transforms(img, **kwargs)
             
         model(img.cuda())
