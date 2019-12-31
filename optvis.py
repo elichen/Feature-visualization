@@ -11,27 +11,25 @@ def init_fft_buf(size, rand_sd=0.1, **kwargs):
     spectrum_t = tensor(img_buf).float().cuda()
     return spectrum_t
 
-def get_fft_scale(size, d=0.5, decay_power=1, **kwargs):
+def get_fft_scale(size, d=0.5, fft_magic=4.0, decay_power=1, **kwargs):
     fy = np.fft.fftfreq(size,d=d)[:,None]
     fx = np.fft.fftfreq(size,d=d)[: size//2 + 1]
     freqs = (np.sqrt(fx * fx + fy * fy))
-    scale = 1.0 / np.maximum(freqs, 1.0 / size) ** decay_power
+    scale = 1.0 / np.maximum(freqs, 1.0 / (size*d)) ** decay_power
     scale = tensor(scale).float()[None,None,...,None].cuda()
-    scale *= size
+    scale = scale / fft_magic
     return scale
 
-def fft_to_rgb(t, fft_magic=4.0, **kwargs):
+def fft_to_rgb(t, **kwargs):
     size = t.shape[-3]
     scale = get_fft_scale(size, **kwargs)
     t = scale * t
-    t = torch.irfft(t,2,signal_sizes=(size,size))
-    t = t / fft_magic
+    t = torch.irfft(t,2,normalized=True,signal_sizes=(size,size))
     return t
 
-def rgb_to_fft(t, fft_magic=4.0, **kwargs):
+def rgb_to_fft(t, **kwargs):
     size = t.shape[-1]
-    t = t * fft_magic
-    t = torch.rfft(t,signal_ndim=2)
+    t = torch.rfft(t,normalized=True,signal_ndim=2)
     scale = get_fft_scale(size, **kwargs)
     t = t / scale
     return t
@@ -135,7 +133,7 @@ def visualize_feature(model, layer, feature, start_image=None,
         img_buf = fastai_image.data[None,:]
         img_buf = normalize(img_buf)
         img_buf = rgb_to_lucid_colorspace(img_buf)
-        img_buf = rgb_to_fft(img_buf)
+        img_buf = rgb_to_fft(img_buf, **kwargs)
     else:
         img_buf = init_fft_buf(size, **kwargs)
     img_buf.requires_grad_()
