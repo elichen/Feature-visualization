@@ -6,12 +6,12 @@ from IPython.display import clear_output
 from torchvision import transforms
 import fastai.vision as vision
 
-def init_fft_buf(size, rand_sd=0.1, **kwargs):
+def init_fft_buf(size, rand_sd=0.01, **kwargs):
     img_buf = np.random.normal(size=(1, 3, size, size//2 + 1, 2), scale=rand_sd).astype(np.float32)
     spectrum_t = tensor(img_buf).float().cuda()
     return spectrum_t
 
-def get_fft_scale(size, d=0.5, fft_magic=4.0, decay_power=1, **kwargs):
+def get_fft_scale(size, decay_power=.75, **kwargs):
     d=.5**.5 # set center frequency scale to 1
     fy = np.fft.fftfreq(size,d=d)[:,None]
     fx = np.fft.fftfreq(size,d=d)[: size//2 + 1]
@@ -125,7 +125,7 @@ def lucid_transforms(img, jitter=12, scale=.1, degrees=10, **kwargs):
     return fastai_image.data[None,:]
 
 def visualize_feature(model, layer, feature, start_image=None,
-                      size=200, steps=2000, lr=0.05,
+                      size=200, steps=1000, lr=0.002,
                       debug=False, frames=10, show=True, **kwargs):
     if start_image is not None:
         fastai_image = vision.Image(start_image.squeeze())
