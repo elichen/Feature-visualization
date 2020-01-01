@@ -12,12 +12,12 @@ def init_fft_buf(size, rand_sd=0.1, **kwargs):
     return spectrum_t
 
 def get_fft_scale(size, d=0.5, fft_magic=4.0, decay_power=1, **kwargs):
+    d=.5**.5 # set center frequency scale to 1
     fy = np.fft.fftfreq(size,d=d)[:,None]
     fx = np.fft.fftfreq(size,d=d)[: size//2 + 1]
-    freqs = (np.sqrt(fx * fx + fy * fy))
-    scale = 1.0 / np.maximum(freqs, 1.0 / (size*d)) ** decay_power
+    freqs = (fx**2 + fy**2) ** decay_power
+    scale = 1.0 / np.maximum(freqs, 1.0 / (size*d))
     scale = tensor(scale).float()[None,None,...,None].cuda()
-    scale = scale / fft_magic
     return scale
 
 def fft_to_rgb(t, **kwargs):
