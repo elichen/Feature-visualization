@@ -146,19 +146,21 @@ def visualize_feature(model, layer, feature, start_image=None,
     hook = layer.register_forward_hook(callback)
     
     for i in range(1,steps+1):
+        opt.zero_grad()
+
         img = fft_to_rgb(img_buf, **kwargs)
         img = lucid_colorspace_to_rgb(img)
         img = torch.sigmoid(img)*2 - 1
-        img = lucid_transforms(img, **kwargs)
-            
-        model(img.cuda())
-        opt.zero_grad()
+        img = lucid_transforms(img, **kwargs)          
+        model(img.cuda())        
         if feature is None:
             loss = -1*(hook_out[0]**2).mean()
         else:
             loss = -1*hook_out[0][feature].mean()
+
         loss.backward()
         opt.step()
+        
         if debug and (i)%(int(steps/frames))==0:
             clear_output(wait=True)
             show_rgb(image_buf_to_rgb(img_buf, **kwargs),
