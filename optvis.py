@@ -73,7 +73,7 @@ def image_buf_to_rgb(img_buf, **kwargs):
     size = img.shape[-1]
     img = lucid_colorspace_to_rgb(img)
     img = torch.clamp(denormalize(img),max=1,min=0)
-    img = img.squeeze()    
+    img = img[0]    
     return img
     
 def show_rgb(img, label=None, ax=None, dpi=25, **kwargs):
