@@ -125,7 +125,7 @@ def lucid_transforms(img, jitter=12, scale=.1, degrees=10, **kwargs):
     return fastai_image.data[None,:]
 
 def visualize_feature(model, layer, feature, start_image=None,
-                      size=200, steps=1000, lr=0.002,
+                      size=200, steps=1000, lr=0.002, weight_decay=0,
                       debug=False, frames=10, show=True, **kwargs):
     if start_image is not None:
         fastai_image = vision.Image(start_image.squeeze())
@@ -137,7 +137,7 @@ def visualize_feature(model, layer, feature, start_image=None,
     else:
         img_buf = init_fft_buf(size, **kwargs)
     img_buf.requires_grad_()
-    opt = torch.optim.Adam([img_buf], lr=lr)
+    opt = torch.optim.AdamW([img_buf], lr=lr, weight_decay=weight_decay)
 
     hook_out = None
     def callback(m, i, o):
