@@ -95,8 +95,10 @@ def gpu_affine_grid(size):
     grid[:, :, :, 1] = torch.ger(linear_points, torch.ones(W)).expand_as(grid[:, :, :, 1])
     return vision.FlowField(size[2:], grid)
 
-def lucid_transforms(img, jitter=12, scale=.1, degrees=10, **kwargs):
+def lucid_transforms(img, jitter=None, scale=.5, degrees=45, **kwargs):
     size = img.shape[-1]
+    if jitter is None:
+        jitter = size//2
     fastai_image = vision.Image(img.squeeze())
 
     # pad
@@ -125,7 +127,7 @@ def lucid_transforms(img, jitter=12, scale=.1, degrees=10, **kwargs):
     return fastai_image.data[None,:]
 
 def visualize_feature(model, layer, feature, start_image=None,
-                      size=200, steps=1000, lr=0.002, weight_decay=0,
+                      size=200, steps=500, lr=0.004, weight_decay=0.1,
                       debug=False, frames=10, show=True, **kwargs):
     if start_image is not None:
         fastai_image = vision.Image(start_image.squeeze())
