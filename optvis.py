@@ -126,8 +126,12 @@ def lucid_transforms(img, jitter=None, scale=.5, degrees=45, **kwargs):
 
     return fastai_image.data[None,:]
 
+def tensor_stats(t, label=""):
+    if len(label) > 0: label += " "
+    return("%smean:%.2f std:%.2f max:%.2f min:%.2f" % (label, t.mean().item(),t.std().item(),t.max().item(),t.min().item()))
+
 def visualize_feature(model, layer, feature, start_image=None,
-                      size=200, steps=500, lr=0.004, weight_decay=0.1,
+                      size=200, steps=500, lr=0.004, weight_decay=0.1, grad_clip=1,
                       debug=False, frames=10, show=True, **kwargs):
     if start_image is not None:
         fastai_image = vision.Image(start_image.squeeze())
@@ -149,9 +153,10 @@ def visualize_feature(model, layer, feature, start_image=None,
     
     for i in range(1,steps+1):
         opt.zero_grad()
-
+        
         img = fft_to_rgb(img_buf, **kwargs)
         img = lucid_colorspace_to_rgb(img)
+        stats = tensor_stats(img)
         img = torch.sigmoid(img)*2 - 1
         img = lucid_transforms(img, **kwargs)          
         model(img.cuda())        
@@ -161,12 +166,14 @@ def visualize_feature(model, layer, feature, start_image=None,
             loss = -1*hook_out[0][feature].mean()
 
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(img_buf,grad_clip)
         opt.step()
         
         if debug and (i)%(int(steps/frames))==0:
             clear_output(wait=True)
+            label = "step: %i loss: %.2f stats: %s" % (i, loss, stats)
             show_rgb(image_buf_to_rgb(img_buf, **kwargs),
-                     label=f"step: {i} loss: {loss}", **kwargs)
+                     label=label, **kwargs)
 
     hook.remove()
     
