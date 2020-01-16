@@ -165,7 +165,7 @@ def visualize_feature(model, layer, feature, start_image=None,
         img = lucid_transforms(img, **kwargs)          
         model(img.cuda())        
         if feature is None:
-            loss = -1*(hook_out[0]**2).mean()
+            loss = -1*torch.nn.functional.relu(hook_out[0]).pow(2).mean()*hook_out[0].std()
         else:
             loss = -1*hook_out[0][feature].mean()
 
