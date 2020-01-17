@@ -133,7 +133,14 @@ def tensor_stats(t, label=""):
     if len(label) > 0: label += " "
     return("%smean:%.2f std:%.2f max:%.2f min:%.2f" % (label, t.mean().item(),t.std().item(),t.max().item(),t.min().item()))
 
-def visualize_feature(model, layer, feature, start_image=None,
+def cossim(act0, act1, cosim_weight=0, **kwargs):
+    dot = (act0 * act1).sum()
+    mag0 = act0.pow(2).sum().sqrt()
+    mag1 = act1.pow(2).sum().sqrt()
+    cossim = cosim_weight*dot/(mag0*mag1)
+    return cossim
+
+def visualize_feature(model, layer, feature, start_image=None, last_hook_out=None,
                       size=200, steps=500, lr=0.004, weight_decay=0.1, grad_clip=1,
                       debug=False, frames=10, show=True, **kwargs):
     h,w = size if type(size) is tuple else (size,size)
@@ -165,9 +172,12 @@ def visualize_feature(model, layer, feature, start_image=None,
         img = lucid_transforms(img, **kwargs)          
         model(img.cuda())        
         if feature is None:
-            loss = -1*torch.nn.functional.relu(hook_out[0]).pow(2).mean()*hook_out[0].std()
+            loss = -1 * hook_out[0].pow(2).mean()
         else:
-            loss = -1*hook_out[0][feature].mean()
+            loss = -1 * hook_out[0][feature].mean()
+        if last_hook_out is not None:
+            simularity = cossim(hook_out[0], last_hook_out, **kwargs)
+            loss = loss + loss * simularity
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(img_buf,grad_clip)
@@ -175,7 +185,7 @@ def visualize_feature(model, layer, feature, start_image=None,
         
         if debug and (i)%(int(steps/frames))==0:
             clear_output(wait=True)
-            label = "step: %i loss: %.2f stats: %s" % (i, loss, stats)
+            label = f"step: {i} loss: {loss:.2f} stats:{stats}"
             show_rgb(image_buf_to_rgb(h, w, img_buf, **kwargs),
                      label=label, **kwargs)
 
@@ -184,5 +194,4 @@ def visualize_feature(model, layer, feature, start_image=None,
     retval = image_buf_to_rgb(h, w, img_buf, **kwargs)
     if show:
         if not debug: show_rgb(retval, **kwargs)
-    else:
-        return retval
+    return retval, hook_out[0].clone().detach()
