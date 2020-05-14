@@ -72,7 +72,7 @@ def image_buf_to_rgb(h, w, img_buf, **kwargs):
     img = img_buf.detach()
     img = fft_to_rgb(h, w, img, **kwargs)
     img = lucid_colorspace_to_rgb(img)
-    img = torch.clamp(denormalize(img),max=1,min=0)
+    img = torch.sigmoid(img)
     img = img[0]    
     return img
     
@@ -168,7 +168,8 @@ def visualize_feature(model, layer, feature, start_image=None, last_hook_out=Non
         img = fft_to_rgb(h, w, img_buf, **kwargs)
         img = lucid_colorspace_to_rgb(img)
         stats = tensor_stats(img)
-        img = torch.sigmoid(img)*2 - 1
+        img = torch.sigmoid(img)
+        img = normalize(img)
         img = lucid_transforms(img, **kwargs)          
         model(img.cuda())        
         if feature is None:
